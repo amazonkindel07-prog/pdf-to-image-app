@@ -4,30 +4,44 @@ import fitz  # PyMuPDF
 # ページの設定
 st.set_page_config(page_title="PDF画像変換ツール", layout="centered")
 
-# --- 日本語化のためのカスタムCSS ---
+# --- 日本語化のためのカスタムCSS（セレクタをより強力に修正） ---
 st.markdown("""
     <style>
-    /* アップローダー内のテキストを日本語に擬似的に変更 */
-    section[data-testid="stFileUploader"] section button [data-testid="stMarkdownContainer"] p {
-        font-size: 0;
+    /* アップロードエリア全体のテキストを日本語化 */
+    div[data-testid="stFileUploader"] section {
+        padding: 1em;
     }
-    section[data-testid="stFileUploader"] section button [data-testid="stMarkdownContainer"] p::before {
+    /* "Browse files" ボタンの書き換え */
+    div[data-testid="stFileUploader"] section button span::before {
         content: "ファイルを選択";
         font-size: 16px;
+        visibility: visible;
     }
-    section[data-testid="stFileUploader"] [data-testid="stUploadDropzone"] div div span {
+    div[data-testid="stFileUploader"] section button span {
         font-size: 0;
+        visibility: hidden;
     }
-    section[data-testid="stFileUploader"] [data-testid="stUploadDropzone"] div div span::before {
+    /* "Drag and drop file here" の書き換え */
+    div[data-testid="stFileUploader"] section div[data-testid="stMarkdownContainer"] p {
+        font-size: 0;
+        visibility: hidden;
+    }
+    div[data-testid="stFileUploader"] section div[data-testid="stMarkdownContainer"] p::before {
         content: "ここにPDFファイルをドラッグ＆ドロップしてください";
         font-size: 16px;
+        visibility: visible;
+        display: block;
+        margin-bottom: 10px;
     }
-    section[data-testid="stFileUploader"] [data-testid="stUploadDropzone"] div div small {
+    /* "Limit 200MB per file" の書き換え */
+    div[data-testid="stFileUploader"] section small {
         font-size: 0;
+        visibility: hidden;
     }
-    section[data-testid="stFileUploader"] [data-testid="stUploadDropzone"] div div small::before {
-        content: "1ファイル最大 200MB まで • PDF形式のみ";
+    div[data-testid="stFileUploader"] section small::before {
+        content: "最大 200MB まで • PDF形式";
         font-size: 12px;
+        visibility: visible;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -45,7 +59,6 @@ out_format = st.sidebar.selectbox(
 dpi = st.sidebar.slider("解像度 (DPI)", min_value=72, max_value=300, value=150)
 
 # --- メイン機能 ---
-# ラベル自体も日本語にします
 uploaded_file = st.file_uploader("PDFファイルをアップロード", type="pdf", label_visibility="collapsed")
 
 if uploaded_file is not None:
