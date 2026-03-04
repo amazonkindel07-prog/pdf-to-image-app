@@ -4,92 +4,60 @@ import fitz  # PyMuPDF
 # ページの設定
 st.set_page_config(page_title="PDF画像変換ツール", layout="centered")
 
-# --- 日本語化のためのカスタムCSS（セレクタをより強力に修正） ---
+# --- CSSで標準の英語パーツを非表示にし、デザインを整える ---
 st.markdown("""
     <style>
-    /* アップロードエリア全体のテキストを日本語化 */
-    div[data-testid="stFileUploader"] section {
-        padding: 1em;
+    /* 標準のアップローダー内の英語テキストを非表示にする */
+    div[data-testid="stFileUploader"] section div div {
+        display: none;
     }
-    /* "Browse files" ボタンの書き換え */
-    div[data-testid="stFileUploader"] section button span::before {
-        content: "ファイルを選択";
-        font-size: 16px;
-        visibility: visible;
-    }
-    div[data-testid="stFileUploader"] section button span {
-        font-size: 0;
-        visibility: hidden;
-    }
-    /* "Drag and drop file here" の書き換え */
-    div[data-testid="stFileUploader"] section div[data-testid="stMarkdownContainer"] p {
-        font-size: 0;
-        visibility: hidden;
-    }
-    div[data-testid="stFileUploader"] section div[data-testid="stMarkdownContainer"] p::before {
+    /* アップロードエリアに日本語のメッセージを表示 */
+    div[data-testid="stFileUploader"] section::before {
         content: "ここにPDFファイルをドラッグ＆ドロップしてください";
-        font-size: 16px;
-        visibility: visible;
         display: block;
-        margin-bottom: 10px;
+        text-align: center;
+        color: #555;
+        padding: 20px;
     }
-    /* "Limit 200MB per file" の書き換え */
-    div[data-testid="stFileUploader"] section small {
-        font-size: 0;
-        visibility: hidden;
-    }
-    div[data-testid="stFileUploader"] section small::before {
-        content: "最大 200MB まで • PDF形式";
-        font-size: 12px;
+    /* ファイル選択ボタンを日本語にする */
+    div[data-testid="stFileUploader"] section button::before {
+        content: "ファイルを選択する";
         visibility: visible;
+    }
+    div[data-testid="stFileUploader"] section button {
+        font-size: 0;
+        width: 100%;
     }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("📄 PDF画像変換ツール")
-st.write("PDFファイルをアップロードして、PNG、JPEG、またはTIFF形式に変換します。")
+st.write("PDFをアップロードして、画像（PNG/JPG/TIFF）に変換します。")
 
 # --- サイドバー設定 ---
 st.sidebar.header("変換設定")
-out_format = st.sidebar.selectbox(
-    "出力形式を選択してください", 
-    ["png", "jpg", "tiff"], 
-    format_func=lambda x: x.upper()
-)
-dpi = st.sidebar.slider("解像度 (DPI)", min_value=72, max_value=300, value=150)
+out_format = st.sidebar.selectbox("出力形式", ["png", "jpg", "tiff"], format_func=lambda x: x.upper())
+dpi = st.sidebar.slider("解像度 (DPI)", 72, 300, 150)
 
 # --- メイン機能 ---
-uploaded_file = st.file_uploader("PDFファイルをアップロード", type="pdf", label_visibility="collapsed")
+# 日本語のラベルを指定
+uploaded_file = st.file_uploader("PDFファイル（最大200MB）", type="pdf")
 
-if uploaded_file is not None:
-    pdf_data = uploaded_file.read()
-    doc = fitz.open(stream=pdf_data, filetype="pdf")
-    
-    st.success(f"PDFの読み込みに成功しました（全 {len(doc)} ページ）")
+if uploaded_file:
+    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+    st.success(f"読み込み完了：全 {len(doc)} ページ")
     
     if st.button("変換を開始する"):
         progress_bar = st.progress(0)
         for i in range(len(doc)):
             page = doc.load_page(i)
-            zoom = dpi / 72
-            mat = fitz.Matrix(zoom, zoom)
-            pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
-            
-            fmt = "jpg" if out_format == "jpg" else out_format
-            img_bytes = pix.tobytes(fmt)
+            pix = page.get_pixmap(matrix=fitz.Matrix(dpi/72, dpi/72))
+            img_bytes = pix.tobytes("jpg" if out_format == "jpg" else out_format)
             
             st.markdown(f"### {i+1} ページ目")
             st.image(img_bytes, use_container_width=True)
+            st.download_button(f"{i+1} ページ目を保存", img_bytes, f"page_{i+1}.{out_format}")
             
-            st.download_button(
-                label=f"{i+1} ページ目を保存 ({out_format.upper()})",
-                data=img_bytes,
-                file_name=f"page_{i+1}.{out_format}",
-                mime=f"image/{out_format}",
-                key=f"btn_{i}"
-            )
             progress_bar.progress((i + 1) / len(doc))
-        
         st.balloons()
-        st.success("すべての変換が完了しました！")
     doc.close()
